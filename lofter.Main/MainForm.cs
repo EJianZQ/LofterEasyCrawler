@@ -1,18 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
 using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Text.RegularExpressions;
-using System.Threading;
 using Newtonsoft.Json;
 using lofter.Main.Data;
 using System.IO;
+using System.Net;
+using System.Diagnostics;
 
 namespace lofter.Main
 {
@@ -66,12 +62,30 @@ namespace lofter.Main
                             string TargetSubDirectory = TargetRootDirectory + "\\" + $"第{i + 1}页内容";
                             Directory.CreateDirectory(TargetSubDirectory);
                             await File.WriteAllTextAsync(TargetSubDirectory + "\\" + "数据.json", ConvertJsonString(JsonConvert.SerializeObject(postCollections[i])));
-                            textBox_Status.AppendText($"第{i + 1}页的数据已经保存" + Environment.NewLine);
+                            for (int k = 0; k < postCollections[i].Posts.Count; k++)
+                            {
+                                using (var img = DownloadImage.UrlToImage(postCollections[i].Posts[k].ImgUrl))
+                                {
+                                    if (img != null)
+                                    {
+                                        if (postCollections[i].Posts[k].ImgUrl.Contains("type=jpg") == true)
+                                        {
+                                            WebClient mywebclient = new WebClient();
+                                            mywebclient.DownloadFile(postCollections[i].Posts[k].ImgUrl, TargetSubDirectory + "\\" + $"第{k + 1}张.jpg");
+                                        }
+                                        else
+                                            img.Save(TargetSubDirectory + "\\" + $"第{k + 1}张.png");
+                                    }
+                                }
+                            }
+                            textBox_Status.AppendText($"第{i + 1}页的数据和图片已经保存" + Environment.NewLine);
                         }
+                        if(MessageBox.Show($"所有数据已下载至{TargetRootDirectory}目录下\n是否打开此目录查看？","EzLofter", MessageBoxButtons.OKCancel) == DialogResult.OK)
+                            Process.Start("Explorer.exe", TargetRootDirectory + "\\");
                     }
                     catch
                     {
-
+                        
                     }
                 }
             }
@@ -79,9 +93,13 @@ namespace lofter.Main
                 MessageBox.Show("输入的网址里不包含任何lofter博主地址\n示例：https://dongguaailaohan.lofter.com/");
         }
 
+        /// <summary>
+        /// 将json字符串格式化排版
+        /// </summary>
+        /// <param name="str"></param>
+        /// <returns></returns>
         private string ConvertJsonString(string str)
         {
-            //格式化json字符串
             JsonSerializer serializer = new JsonSerializer();
             TextReader tr = new StringReader(str);
             JsonTextReader jtr = new JsonTextReader(tr);
